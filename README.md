@@ -15,50 +15,13 @@ Address of the Promoter (Registered Office Address)
 
 GST No.
 
-
-
 ---
 
-Requirements
+1.install selenium
+command:pip install selenium webdriver-manager
 
-Python 3.x
-
-Libraries: requests, beautifulsoup4
-
-
-Install dependencies using:
-
-pip install requests beautifulsoup4
-
-
----
-
-How to run
-
-1. Clone the repository or download the script.
-
-
-2. Run the script using Python 3:
-
-
-
-python rera_scraper.py
-
-3. The script outputs the details of the first 6 projects on the console.
-
-
-
-
----
-
-Notes
-
-The scraper uses HTTP requests and parses HTML content with BeautifulSoup.
-
-If the website structure changes, the scraper may need adjustments.
-
-The script does not use Selenium and assumes no login or captcha is required.
-
+2.run
+command:python file_name.py
 
 
 ---
