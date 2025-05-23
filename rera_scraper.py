@@ -1,40 +1,66 @@
-import requests
-from bs4 import BeautifulSoup
-import json
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
-BASE_URL = "https://rera.odisha.gov.in"
-PROJECT_LIST_URL = f"{BASE_URL}/projects/project-list"
+# Initialize browser
+browser = webdriver.Chrome()
+browser.get("https://rera.odisha.gov.in/projects/project-list")
+wait = WebDriverWait(browser, 10)
 
-response = requests.get(PROJECT_LIST_URL)
-soup = BeautifulSoup(response.content, "html.parser")
+# Wait for "View Details" links to be loaded
+wait.until(EC.presence_of_element_located((By.XPATH, '//a[contains(text(),"View Details")]')))
+time.sleep(2)
 
-# Find all "View Details" links
-links = soup.find_all("a", string="View Details")
-first_6_links = [BASE_URL + link['href'] for link in links[:6]]
+# Fetch first 6 project links
+project_links = browser.find_elements(By.XPATH, '//a[contains(text(),"View Details")]')[:6]
 
-project_data = []
+for index, _ in enumerate(project_links):
+    # Refresh clickable links each time (DOM reloads after back)
+    refreshed_links = browser.find_elements(By.XPATH, '//a[contains(text(),"View Details")]')
+    browser.execute_script("arguments[0].click();", refreshed_links[index])
+    print(f"\n--- Project {index + 1} ---")
 
-for url in first_6_links:
-    res = requests.get(url)
-    detail_soup = BeautifulSoup(res.content, "html.parser")
+    # Wait for detail block
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "details-project")))
+    time.sleep(2)
+    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(1)
 
+    # Extract project details
+    detail_blocks = browser.find_elements(By.CLASS_NAME, "details-project")
+    for section in detail_blocks:
+        try:
+            label_text = section.find_element(By.TAG_NAME, "label").text.strip()
+            value_text = section.find_element(By.TAG_NAME, "strong").text.strip()
+            if label_text in ["Project Name", "RERA Regd. No."]:
+                print(f"{label_text}: {value_text}")
+        except:
+            continue
+
+    # Switch to Promoter Details tab
     try:
-        rera_no = detail_soup.find("span", id="lblRegistrationNumber").text.strip()
-        project_name = detail_soup.find("span", id="lblProjectName").text.strip()
-        promoter_name = detail_soup.find("span", id="lblPromoterName").text.strip()
-        promoter_address = detail_soup.find("span", id="lblRegisteredAddress").text.strip()
-        gst_no = detail_soup.find("span", id="lblGSTIN").text.strip()
-    except Exception as e:
-        print(f"Error scraping {url}: {e}")
-        continue
+        promoter_tab = browser.find_element(By.LINK_TEXT, "Promoter Details")
+        browser.execute_script("arguments[0].click();", promoter_tab)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ms-3")))
+        time.sleep(1)
 
-    project_data.append({
-        "RERA Regd. No": rera_no,
-        "Project Name": project_name,
-        "Promoter Name": promoter_name,
-        "Promoter Address": promoter_address,
-        "GST No.": gst_no
-    })
+        promoter_info = browser.find_elements(By.CLASS_NAME, "ms-3")
+        for info in promoter_info:
+            try:
+                label_text = info.find_element(By.TAG_NAME, "label").text.strip()
+                value_text = info.find_element(By.TAG_NAME, "strong").text.strip()
+                if label_text in ["Company Name", "Registered Office Address", "GST No."]:
+                    print(f"{label_text}: {value_text}")
+            except:
+                continue
+    except Exception as error:
+        print("Promoter tab issue or data not found:", error)
 
-# Output the result as JSON
-print(json.dumps(project_data, indent=2))
+    # Go back to the list
+    browser.back()
+    wait.until(EC.presence_of_element_located((By.XPATH, '//a[contains(text(),"View Details")]')))
+    time.sleep(2)
+
+browser.quit()
